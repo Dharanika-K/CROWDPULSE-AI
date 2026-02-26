@@ -1,7 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pymongo import MongoClient
 from textblob import TextBlob
@@ -20,8 +18,7 @@ app.add_middleware(
 )
 
 # MongoDB Connection
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-client = MongoClient(MONGO_URI)
+client = MongoClient("mongodb://localhost:27017/")
 db = client["crowdpulse"]
 collection = db["reports"]
 
@@ -30,6 +27,10 @@ class Report(BaseModel):
     location: str
     issue: str
     description: str
+
+@app.get("/")
+def home():
+    return {"message": "CrowdPulse API Running"}
 
 @app.post("/report")
 def create_report(report: Report):
@@ -99,12 +100,3 @@ def risk_score():
         risk = "Low"
 
     return {"risk": risk, "negative_ratio": ratio}
-
-# Serve React Frontend
-frontend_build_path = os.path.join(os.path.dirname(__file__), "build")
-if os.path.exists(frontend_build_path):
-    app.mount("/", StaticFiles(directory=frontend_build_path, html=True), name="static")
-else:
-    @app.get("/")
-    def home():
-        return {"message": "CrowdPulse API Running (Frontend not built)"}
