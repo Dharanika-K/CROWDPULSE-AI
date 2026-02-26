@@ -26,6 +26,13 @@ Displays results dynamically
 
 Demonstrates full-stack development with AI integration
 
+📝 User Stories
+
+As a citizen, I want to submit a civic issue report with my location and description so that the authorities are aware of the problem.
+As a system administrator, I want the system to automatically analyze the sentiment of the submitted report so that issues can be prioritized based on severity.
+As a user, I want to see a confirmation and the analyzed sentiment of my report so that I know my complaint was successfully processed.
+As a developer, I want the frontend and backend to communicate via REST APIs so that the application is modular and scalable.
+
 🏗️ System Architecture
 
 User → React Frontend → FastAPI Backend → Sentiment Model → Response → UI Display
