@@ -44,12 +44,22 @@ def create_report(report: Report):
     else:
         sentiment = "neutral"
 
+    # Smart Priority Detection
+priority = "Low"
+
+if sentiment == "negative":
+    if report.issue.lower() in ["water", "power", "electricity", "hospital"]:
+        priority = "High"
+    else:
+        priority = "Medium"
+
     data = {
         "user": report.user,
         "location": report.location,
         "issue": report.issue,
         "description": report.description,
         "sentiment": sentiment,
+        "priority": priority,
         "score": polarity,
         "created_at": datetime.now()
     }
