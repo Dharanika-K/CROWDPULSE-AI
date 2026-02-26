@@ -1,5 +1,5 @@
 # Stage 1: Build the React frontend
-FROM node:18 AS frontend-builder
+FROM node:18-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm install
@@ -7,19 +7,19 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build the FastAPI backend
-FROM python:3.10-slim
-WORKDIR /app/backend
+FROM python:3.9-slim
+WORKDIR /app
 
-# Install Python dependencies
-COPY backend/requirements.txt ./
+# Install backend dependencies
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN python -m textblob.download_corpora
 
 # Copy backend code
-COPY backend/ ./
+COPY backend/ .
 
-# Copy frontend build to backend directory
-COPY --from=frontend-builder /app/frontend/build ./build
+# Copy built frontend from Stage 1 to the backend's static folder
+COPY --from=frontend-build /app/frontend/build ./static
 
 # Expose the port FastAPI runs on
 EXPOSE 8000

@@ -24,12 +24,12 @@ function App() {
   }, []);
 
   const fetchReports = async () => {
-    const res = await axios.get("/reports");
+    const res = await axios.get("/api/reports");
     setReports(res.data);
   };
 
   const fetchRisk = async () => {
-    const res = await axios.get("/risk-score");
+    const res = await axios.get("/api/risk-score");
     setRiskData(res.data);
   };
 
@@ -38,7 +38,7 @@ function App() {
   };
 
   const submitReport = async () => {
-    const res = await axios.post("/report", form);
+    const res = await axios.post("/api/report", form);
     setSentiment(res.data.sentiment);
     fetchReports();
     fetchRisk();
@@ -70,7 +70,7 @@ function App() {
 
   return (
     <div style={{ background: "#f1f5f9", minHeight: "100vh" }}>
-      
+
       <div style={{
         background: "linear-gradient(90deg,#1e3a8a,#2563eb)",
         color: "white",
@@ -108,7 +108,7 @@ function App() {
             <p>Risk Level: <b style={{
               color:
                 riskData.risk === "High" ? "red" :
-                riskData.risk === "Medium" ? "orange" : "green"
+                  riskData.risk === "Medium" ? "orange" : "green"
             }}>{riskData.risk}</b></p>
             <p>Negative Ratio: {(riskData.negative_ratio * 100).toFixed(1)}%</p>
           </div>
@@ -116,7 +116,7 @@ function App() {
 
         {/* RIGHT PANEL */}
         <div style={{ flex: 2 }}>
-          
+
           <div style={cardStyle}>
             <h3>Sentiment Distribution</h3>
             <ResponsiveContainer width="100%" height={250}>
@@ -165,7 +165,7 @@ function App() {
                     <td style={{
                       color:
                         r.priority === "High" ? "red" :
-                        r.priority === "Medium" ? "orange" : "green"
+                          r.priority === "Medium" ? "orange" : "green"
                     }}>{r.priority}</td>
                   </tr>
                 ))}

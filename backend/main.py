@@ -31,7 +31,7 @@ class Report(BaseModel):
     issue: str
     description: str
 
-@app.post("/report")
+@app.post("/api/report")
 def create_report(report: Report):
     analysis = TextBlob(report.description)
     polarity = analysis.sentiment.polarity
@@ -76,12 +76,12 @@ def create_report(report: Report):
 
     return {"message": "Report submitted", "sentiment": sentiment}
 
-@app.get("/reports")
+@app.get("/api/reports")
 def get_reports():
     reports = list(collection.find({}, {"_id": 0}))
     return reports
 
-@app.get("/risk-score")
+@app.get("/api/risk-score")
 def risk_score():
     total = collection.count_documents({})
     negative = collection.count_documents({"sentiment": "negative"})
@@ -98,13 +98,14 @@ def risk_score():
     else:
         risk = "Low"
 
-    return {"risk": risk, "negative_ratio": ratio}
+    return {"risk": risk, "negative_ratio": round(ratio, 2)}
 
 # Serve React Frontend
-frontend_build_path = os.path.join(os.path.dirname(__file__), "build")
-if os.path.exists(frontend_build_path):
-    app.mount("/", StaticFiles(directory=frontend_build_path, html=True), name="static")
-else:
-    @app.get("/")
-    def home():
-        return {"message": "CrowdPulse API Running (Frontend not built)"}
+if os.path.isdir("static"):
+    app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+@app.exception_handler(404)
+async def custom_404_handler(_, __):
+    if os.path.exists("static/index.html"):
+        return FileResponse("static/index.html")
+    return {"message": "API is running, but frontend is not built."}

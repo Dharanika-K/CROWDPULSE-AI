@@ -21,13 +21,13 @@ pipeline {
         stage('Build Application') {
             steps {
                 echo 'Building the application...'
-                // In a real scenario, you might run unit tests or linting here.
-                // Since we use a multi-stage Dockerfile, the actual build happens in the next stage.
-                sh 'echo "Application build step verified."'
+                // In a real scenario, you might run tests or build artifacts here.
+                // Since we are using a multi-stage Dockerfile, the build happens during docker build.
+                sh 'echo "Application build step (handled by Docker multi-stage build)"'
             }
         }
 
-        stage('Build and Push Docker Image') {
+        stage('Create & Push Docker Image') {
             steps {
                 echo 'Building Docker image...'
                 script {
@@ -44,16 +44,16 @@ pipeline {
             }
         }
 
-        stage('Deploy to AWS EC2') {
+        stage('Deploy to EC2') {
             steps {
-                echo 'Deploying to AWS EC2 instance...'
+                echo 'Deploying to EC2 instance...'
                 sshagent(credentials: [SSH_CREDENTIALS_ID]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
                             docker pull ${DOCKER_IMAGE}:latest
-                            docker stop crowdpulse-ai || true
-                            docker rm crowdpulse-ai || true
-                            docker run -d -p 8000:8000 --name crowdpulse-ai -e MONGO_URI="mongodb://your-mongo-ip:27017/" ${DOCKER_IMAGE}:latest
+                            docker stop crowdpulse-app || true
+                            docker rm crowdpulse-app || true
+                            docker run -d --name crowdpulse-app -p 8000:8000 -e MONGO_URI=mongodb://localhost:27017/ ${DOCKER_IMAGE}:latest
                         '
                     """
                 }
@@ -63,7 +63,7 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline executed successfully!'
+            echo 'Pipeline completed successfully!'
         }
         failure {
             echo 'Pipeline failed. Please check the logs.'
