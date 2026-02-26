@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import {
+  PieChart, Pie, Cell,
+  BarChart, Bar, XAxis, YAxis,
+  Tooltip, ResponsiveContainer
+} from "recharts";
 
 function App() {
   const [form, setForm] = useState({
@@ -9,21 +14,23 @@ function App() {
     description: "",
   });
 
+  const [reports, setReports] = useState([]);
   const [sentiment, setSentiment] = useState("");
-  const [reportsCount, setReportsCount] = useState(0);
+  const [riskData, setRiskData] = useState({ risk: "", negative_ratio: 0 });
 
-  // 🔥 Fetch reports count when page loads
   useEffect(() => {
     fetchReports();
+    fetchRisk();
   }, []);
 
   const fetchReports = async () => {
-    try {
-      const res = await axios.get("http://127.0.0.1:8000/reports");
-      setReportsCount(res.data.length);
-    } catch (error) {
-      console.log("Error fetching reports");
-    }
+    const res = await axios.get("http://127.0.0.1:8000/reports");
+    setReports(res.data);
+  };
+
+  const fetchRisk = async () => {
+    const res = await axios.get("http://127.0.0.1:8000/risk-score");
+    setRiskData(res.data);
   };
 
   const handleChange = (e) => {
@@ -31,179 +38,167 @@ function App() {
   };
 
   const submitReport = async () => {
-    try {
-      const res = await axios.post(
-        "http://127.0.0.1:8000/report",
-        form
-      );
-
-      setSentiment(res.data.sentiment);
-
-      // 🔥 Refresh real count from database
-      fetchReports();
-
-      // Clear form
-      setForm({
-        user: "",
-        location: "",
-        issue: "",
-        description: "",
-      });
-
-    } catch (error) {
-      setSentiment("error");
-    }
+    const res = await axios.post("http://127.0.0.1:8000/report", form);
+    setSentiment(res.data.sentiment);
+    fetchReports();
+    fetchRisk();
   };
 
+  // Sentiment Chart Data
+  const sentimentCounts = {
+    positive: reports.filter(r => r.sentiment === "positive").length,
+    neutral: reports.filter(r => r.sentiment === "neutral").length,
+    negative: reports.filter(r => r.sentiment === "negative").length,
+  };
+
+  const pieData = [
+    { name: "Positive", value: sentimentCounts.positive },
+    { name: "Neutral", value: sentimentCounts.neutral },
+    { name: "Negative", value: sentimentCounts.negative },
+  ];
+
+  // Location Aggregation
+  const locationMap = {};
+  reports.forEach(r => {
+    locationMap[r.location] = (locationMap[r.location] || 0) + 1;
+  });
+
+  const barData = Object.keys(locationMap).map(loc => ({
+    location: loc,
+    count: locationMap[loc]
+  }));
+
   return (
-    <div style={styles.page}>
-      <div style={styles.navbar}>
-        CrowdPulse AI – Civic Intelligence System
+    <div style={{ background: "#f1f5f9", minHeight: "100vh" }}>
+      
+      <div style={{
+        background: "linear-gradient(90deg,#1e3a8a,#2563eb)",
+        color: "white",
+        padding: "20px",
+        fontSize: "22px",
+        textAlign: "center"
+      }}>
+        CrowdPulse AI – Civic Risk Intelligence Dashboard
       </div>
 
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h2>Submit Civic Issue</h2>
+      <div style={{ display: "flex", padding: "30px", gap: "30px" }}>
 
-          <input
-            name="user"
-            placeholder="Your Name"
-            value={form.user}
-            onChange={handleChange}
-            style={styles.input}
-          />
+        {/* LEFT PANEL */}
+        <div style={{ flex: 1 }}>
+          <div style={cardStyle}>
+            <h3>Submit Civic Issue</h3>
 
-          <input
-            name="location"
-            placeholder="Location"
-            value={form.location}
-            onChange={handleChange}
-            style={styles.input}
-          />
+            <input name="user" placeholder="Name" onChange={handleChange} style={inputStyle} />
+            <input name="location" placeholder="Location" onChange={handleChange} style={inputStyle} />
+            <input name="issue" placeholder="Issue Type" onChange={handleChange} style={inputStyle} />
+            <textarea name="description" placeholder="Description" onChange={handleChange} style={inputStyle} />
 
-          <input
-            name="issue"
-            placeholder="Issue Type"
-            value={form.issue}
-            onChange={handleChange}
-            style={styles.input}
-          />
+            <button onClick={submitReport} style={buttonStyle}>Submit</button>
 
-          <textarea
-            name="description"
-            placeholder="Describe Issue"
-            value={form.description}
-            onChange={handleChange}
-            style={styles.textarea}
-          />
+            {sentiment && (
+              <div style={{ marginTop: "10px" }}>
+                Sentiment: <b>{sentiment.toUpperCase()}</b>
+              </div>
+            )}
+          </div>
 
-          <button onClick={submitReport} style={styles.button}>
-            Analyze & Submit
-          </button>
-
-          {sentiment && (
-            <div
-              style={{
-                ...styles.sentimentBox,
-                backgroundColor:
-                  sentiment === "positive"
-                    ? "#d4edda"
-                    : sentiment === "negative"
-                    ? "#f8d7da"
-                    : sentiment === "neutral"
-                    ? "#fff3cd"
-                    : "#e2e3e5",
-              }}
-            >
-              Sentiment Detected:{" "}
-              <strong>{sentiment.toUpperCase()}</strong>
-            </div>
-          )}
+          <div style={cardStyle}>
+            <h3>Risk Intelligence</h3>
+            <p>Total Reports: {reports.length}</p>
+            <p>Risk Level: <b style={{
+              color:
+                riskData.risk === "High" ? "red" :
+                riskData.risk === "Medium" ? "orange" : "green"
+            }}>{riskData.risk}</b></p>
+            <p>Negative Ratio: {(riskData.negative_ratio * 100).toFixed(1)}%</p>
+          </div>
         </div>
 
-        <div style={styles.dashboard}>
-          <h3>Project Dashboard</h3>
-          <p>Total Reports Submitted</p>
-          <h1>{reportsCount}</h1>
-        </div>
-      </div>
+        {/* RIGHT PANEL */}
+        <div style={{ flex: 2 }}>
+          
+          <div style={cardStyle}>
+            <h3>Sentiment Distribution</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={pieData} dataKey="value" outerRadius={80}>
+                  <Cell fill="#22c55e" />
+                  <Cell fill="#facc15" />
+                  <Cell fill="#ef4444" />
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
-      <div style={styles.footer}>
-        © 2026 CrowdPulse AI | AI-Based Civic Issue Monitoring
+          <div style={cardStyle}>
+            <h3>Reports by Location</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={barData}>
+                <XAxis dataKey="location" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#2563eb" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={cardStyle}>
+            <h3>Recent Reports</h3>
+            <table style={{ width: "100%" }}>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Location</th>
+                  <th>Issue</th>
+                  <th>Sentiment</th>
+                  <th>Priority</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.slice(-5).reverse().map((r, i) => (
+                  <tr key={i}>
+                    <td>{r.user}</td>
+                    <td>{r.location}</td>
+                    <td>{r.issue}</td>
+                    <td>{r.sentiment}</td>
+                    <td style={{
+                      color:
+                        r.priority === "High" ? "red" :
+                        r.priority === "Medium" ? "orange" : "green"
+                    }}>{r.priority}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
       </div>
     </div>
   );
 }
 
-const styles = {
-  page: {
-    fontFamily: "Segoe UI",
-    background: "#f4f6f9",
-    minHeight: "100vh",
-  },
-  navbar: {
-    background: "#1e3a8a",
-    color: "white",
-    padding: "15px",
-    fontSize: "18px",
-    textAlign: "center",
-  },
-  container: {
-    display: "flex",
-    justifyContent: "center",
-    gap: "30px",
-    padding: "40px",
-  },
-  card: {
-    background: "white",
-    padding: "25px",
-    width: "350px",
-    borderRadius: "10px",
-    boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-  },
-  dashboard: {
-    background: "white",
-    padding: "25px",
-    width: "250px",
-    borderRadius: "10px",
-    textAlign: "center",
-    boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-  },
-  input: {
-    width: "100%",
-    padding: "8px",
-    marginBottom: "10px",
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-  },
-  textarea: {
-    width: "100%",
-    padding: "8px",
-    marginBottom: "10px",
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-    height: "70px",
-  },
-  button: {
-    width: "100%",
-    padding: "10px",
-    background: "#1e3a8a",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
-  sentimentBox: {
-    marginTop: "15px",
-    padding: "10px",
-    borderRadius: "6px",
-  },
-  footer: {
-    textAlign: "center",
-    padding: "15px",
-    marginTop: "30px",
-    background: "#e5e7eb",
-  },
+const cardStyle = {
+  background: "white",
+  padding: "20px",
+  marginBottom: "20px",
+  borderRadius: "10px",
+  boxShadow: "0 5px 15px rgba(0,0,0,0.1)"
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "8px",
+  marginBottom: "10px"
+};
+
+const buttonStyle = {
+  padding: "10px",
+  background: "#1e3a8a",
+  color: "white",
+  border: "none",
+  cursor: "pointer"
 };
 
 export default App;

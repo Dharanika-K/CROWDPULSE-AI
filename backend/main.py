@@ -53,6 +53,15 @@ if sentiment == "negative":
     else:
         priority = "Medium"
 
+    # Smart Priority Detection
+    priority = "Low"
+
+    if sentiment == "negative":
+        if report.issue.lower() in ["water", "power", "electricity", "hospital"]:
+            priority = "High"
+        else:
+            priority = "Medium"
+
     data = {
         "user": report.user,
         "location": report.location,
