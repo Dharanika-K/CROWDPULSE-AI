@@ -24,12 +24,12 @@ function App() {
   }, []);
 
   const fetchReports = async () => {
-    const res = await axios.get("http://127.0.0.1:8000/reports");
+    const res = await axios.get("/reports");
     setReports(res.data);
   };
 
   const fetchRisk = async () => {
-    const res = await axios.get("http://127.0.0.1:8000/risk-score");
+    const res = await axios.get("/risk-score");
     setRiskData(res.data);
   };
 
@@ -38,7 +38,7 @@ function App() {
   };
 
   const submitReport = async () => {
-    const res = await axios.post("http://127.0.0.1:8000/report", form);
+    const res = await axios.post("/report", form);
     setSentiment(res.data.sentiment);
     fetchReports();
     fetchRisk();
