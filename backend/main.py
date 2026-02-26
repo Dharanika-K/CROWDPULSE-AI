@@ -45,13 +45,13 @@ def create_report(report: Report):
         sentiment = "neutral"
 
     # Smart Priority Detection
-priority = "Low"
+    priority = "Low"
 
-if sentiment == "negative":
-    if report.issue.lower() in ["water", "power", "electricity", "hospital"]:
-        priority = "High"
-    else:
-        priority = "Medium"
+    if sentiment == "negative":
+        if report.issue.lower() in ["water", "power", "electricity", "hospital"]:
+            priority = "High"
+        else:
+            priority = "Medium"
 
     # Smart Priority Detection
     priority = "Low"
