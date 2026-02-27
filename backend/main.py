@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -7,8 +7,9 @@ from pymongo import MongoClient
 from textblob import TextBlob
 from datetime import datetime
 import os
+import uuid
 
-app = FastAPI()
+app = FastAPI(title="CrowdPulse AI API")
 
 # Allow React frontend
 app.add_middleware(
@@ -25,62 +26,94 @@ client = MongoClient(MONGO_URI)
 db = client["crowdpulse"]
 collection = db["reports"]
 
+
+# ---------------- MODELS ----------------
 class Report(BaseModel):
     user: str
     location: str
     issue: str
     description: str
 
+
+# ---------------- HEALTH CHECK ----------------
+@app.get("/health")
+def health_check():
+    return {"status": "API is running"}
+
+
+# ---------------- CREATE REPORT ----------------
 @app.post("/report")
 def create_report(report: Report):
-    analysis = TextBlob(report.description)
-    polarity = analysis.sentiment.polarity
+    try:
+        analysis = TextBlob(report.description)
+        polarity = analysis.sentiment.polarity
 
-    if polarity < -0.2:
-        sentiment = "negative"
-    elif polarity > 0.2:
-        sentiment = "positive"
-    else:
-        sentiment = "neutral"
-
-    # Smart Priority Detection
-    priority = "Low"
-
-    if sentiment == "negative":
-        if report.issue.lower() in ["water", "power", "electricity", "hospital"]:
-            priority = "High"
+        # Sentiment detection
+        if polarity < -0.2:
+            sentiment = "negative"
+        elif polarity > 0.2:
+            sentiment = "positive"
         else:
-            priority = "Medium"
+            sentiment = "neutral"
 
-    # Smart Priority Detection
-    priority = "Low"
+        # Smart Priority Detection
+        priority = "Low"
+        if sentiment == "negative":
+            if report.issue.lower() in ["water", "power", "electricity", "hospital"]:
+                priority = "High"
+            else:
+                priority = "Medium"
 
-    if sentiment == "negative":
-        if report.issue.lower() in ["water", "power", "electricity", "hospital"]:
-            priority = "High"
-        else:
-            priority = "Medium"
+        data = {
+            "report_id": str(uuid.uuid4()),
+            "user": report.user,
+            "location": report.location,
+            "issue": report.issue,
+            "description": report.description,
+            "sentiment": sentiment,
+            "priority": priority,
+            "score": polarity,
+            "created_at": datetime.utcnow().isoformat()
+        }
 
-    data = {
-        "user": report.user,
-        "location": report.location,
-        "issue": report.issue,
-        "description": report.description,
-        "sentiment": sentiment,
-        "priority": priority,
-        "score": polarity,
-        "created_at": datetime.now()
+        collection.insert_one(data)
+
+        return {
+            "message": "Report submitted",
+            "sentiment": sentiment,
+            "priority": priority,
+            "report_id": data["report_id"]
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------- GET REPORTS (WITH FILTER + PAGINATION) ----------------
+@app.get("/reports")
+def get_reports(
+    sentiment: str = Query(None),
+    limit: int = Query(10, le=100),
+    skip: int = Query(0)
+):
+    query = {}
+
+    if sentiment:
+        query["sentiment"] = sentiment.lower()
+
+    reports = list(
+        collection.find(query, {"_id": 0})
+        .skip(skip)
+        .limit(limit)
+    )
+
+    return {
+        "count": len(reports),
+        "data": reports
     }
 
-    collection.insert_one(data)
 
-    return {"message": "Report submitted", "sentiment": sentiment}
-
-@app.get("/reports")
-def get_reports():
-    reports = list(collection.find({}, {"_id": 0}))
-    return reports
-
+# ---------------- RISK SCORE ----------------
 @app.get("/risk-score")
 def risk_score():
     total = collection.count_documents({})
@@ -100,8 +133,10 @@ def risk_score():
 
     return {"risk": risk, "negative_ratio": ratio}
 
-# Serve React Frontend
+
+# ---------------- SERVE REACT ----------------
 frontend_build_path = os.path.join(os.path.dirname(__file__), "build")
+
 if os.path.exists(frontend_build_path):
     app.mount("/", StaticFiles(directory=frontend_build_path, html=True), name="static")
 else:
