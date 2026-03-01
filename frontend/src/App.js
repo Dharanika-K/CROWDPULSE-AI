@@ -6,6 +6,9 @@ import {
   Tooltip, ResponsiveContainer
 } from "recharts";
 
+// Backend URL (match your FastAPI port)
+const BACKEND_URL = "http://localhost:8000";
+
 function App() {
   const [form, setForm] = useState({
     user: "",
@@ -24,13 +27,25 @@ function App() {
   }, []);
 
   const fetchReports = async () => {
-    const res = await axios.get("/reports");
-    setReports(res.data);
-  };
+  try {
+    const res = await axios.get("http://localhost:8000/reports");
+
+    // IMPORTANT CHANGE
+    setReports(res.data.data);   // 👈 use .data
+
+  } catch (err) {
+    console.error("Error fetching reports:", err);
+    setReports([]);
+  }
+};
 
   const fetchRisk = async () => {
-    const res = await axios.get("/risk-score");
-    setRiskData(res.data);
+    try {
+      const res = await axios.get(`${BACKEND_URL}/risk-score`);
+      setRiskData(res.data);
+    } catch (err) {
+      console.error("Error fetching risk data:", err);
+    }
   };
 
   const handleChange = (e) => {
@@ -38,10 +53,17 @@ function App() {
   };
 
   const submitReport = async () => {
-    const res = await axios.post("/report", form);
-    setSentiment(res.data.sentiment);
-    fetchReports();
-    fetchRisk();
+    try {
+      const res = await axios.post(`${BACKEND_URL}/report`, form);
+      setSentiment(res.data.sentiment);
+      fetchReports();
+      fetchRisk();
+      // Reset form
+      setForm({ user: "", location: "", issue: "", description: "" });
+    } catch (err) {
+      console.error("Error submitting report:", err);
+      alert("Failed to submit report. Check console for details.");
+    }
   };
 
   // Sentiment Chart Data
@@ -70,7 +92,7 @@ function App() {
 
   return (
     <div style={{ background: "#f1f5f9", minHeight: "100vh" }}>
-      
+
       <div style={{
         background: "linear-gradient(90deg,#1e3a8a,#2563eb)",
         color: "white",
@@ -88,10 +110,34 @@ function App() {
           <div style={cardStyle}>
             <h3>Submit Civic Issue</h3>
 
-            <input name="user" placeholder="Name" onChange={handleChange} style={inputStyle} />
-            <input name="location" placeholder="Location" onChange={handleChange} style={inputStyle} />
-            <input name="issue" placeholder="Issue Type" onChange={handleChange} style={inputStyle} />
-            <textarea name="description" placeholder="Description" onChange={handleChange} style={inputStyle} />
+            <input
+              name="user"
+              placeholder="Name"
+              value={form.user}
+              onChange={handleChange}
+              style={inputStyle}
+            />
+            <input
+              name="location"
+              placeholder="Location"
+              value={form.location}
+              onChange={handleChange}
+              style={inputStyle}
+            />
+            <input
+              name="issue"
+              placeholder="Issue Type"
+              value={form.issue}
+              onChange={handleChange}
+              style={inputStyle}
+            />
+            <textarea
+              name="description"
+              placeholder="Description"
+              value={form.description}
+              onChange={handleChange}
+              style={inputStyle}
+            />
 
             <button onClick={submitReport} style={buttonStyle}>Submit</button>
 
@@ -108,7 +154,7 @@ function App() {
             <p>Risk Level: <b style={{
               color:
                 riskData.risk === "High" ? "red" :
-                riskData.risk === "Medium" ? "orange" : "green"
+                  riskData.risk === "Medium" ? "orange" : "green"
             }}>{riskData.risk}</b></p>
             <p>Negative Ratio: {(riskData.negative_ratio * 100).toFixed(1)}%</p>
           </div>
@@ -116,7 +162,7 @@ function App() {
 
         {/* RIGHT PANEL */}
         <div style={{ flex: 2 }}>
-          
+
           <div style={cardStyle}>
             <h3>Sentiment Distribution</h3>
             <ResponsiveContainer width="100%" height={250}>
@@ -165,7 +211,7 @@ function App() {
                     <td style={{
                       color:
                         r.priority === "High" ? "red" :
-                        r.priority === "Medium" ? "orange" : "green"
+                          r.priority === "Medium" ? "orange" : "green"
                     }}>{r.priority}</td>
                   </tr>
                 ))}
